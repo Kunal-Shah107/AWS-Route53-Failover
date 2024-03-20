@@ -1,0 +1,30 @@
+# Failover policy
+cat > failover-policy.json << EOF
+{
+    "AWSPolicyFormatVersion":"2015-10-01",
+    "RecordType":"A",
+    "StartRule":"site_switch",
+    "Endpoints":{
+        "WEBSERVER_PRIMARY":{
+            "Type":"value",
+            "Value":"$WEBSERVER_PRIMARY_PRIVATE_IP"
+        },
+        "WEBSERVER_SECONDARY":{
+            "Type":"value",
+            "Value":"$WEBSERVER_SECONDARY_PRIVATE_IP"
+        }
+    },
+    "Rules":{
+        "site_switch":{
+            "RuleType":"failover",
+            "Primary":{
+                "EndpointReference":"WEBSERVER_PRIMARY",
+                "HealthCheck": "$HEALTH_ID"
+            },
+            "Secondary":{
+                "EndpointReference":"WEBSERVER_SECONDARY"
+            }
+        }
+    }
+}
+EOF

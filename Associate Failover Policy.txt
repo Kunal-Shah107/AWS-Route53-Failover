@@ -1,0 +1,9 @@
+# Create traffic policy
+export TRAFFIC_ID=$(aws route53 create-traffic-policy --name failover-policy \
+  --document file://failover-policy.json | jq -r ".TrafficPolicy.Id")
+   
+# Associate traffic policy to Private Hosted Zone
+aws route53 create-traffic-policy-instance \
+  --hosted-zone-id $HOSTED_ZONE_ID --name service.acloudguy.internal \
+  --ttl 60 --traffic-policy-id $TRAFFIC_ID \
+  --traffic-policy-version 1

@@ -1,0 +1,10 @@
+export HOSTED_ZONE_ID=$(aws route53 create-hosted-zone --name acloudguy.internal \
+  --caller-reference $(date "+%Y%m%d%H%M%S") \
+  --hosted-zone-config PrivateZone=true \
+  --vpc VPCRegion=me-central-1,VPCId=$VPC_ID_PRIMARY |\
+  jq -r ".HostedZone.Id")
+
+
+aws route53 associate-vpc-with-hosted-zone \
+  --hosted-zone-id $HOSTED_ZONE_ID \
+  --vpc VPCRegion=me-south-1,VPCId=$VPC_ID_SECONDARY

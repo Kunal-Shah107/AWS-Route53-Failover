@@ -1,0 +1,5 @@
+# Create Health check for Route 53
+export HEALTH_ID=$(aws route53 create-health-check \
+  --caller-reference $(date "+%Y%m%d%H%M%S") \
+  --health-check-config file://health-check-config.json |\
+  jq -r ".HealthCheck.Id")

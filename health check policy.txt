@@ -1,0 +1,11 @@
+# Health check policy
+cat > health-check-config.json << EOF
+{
+  "Type": "HTTP",
+  "Port": 80,
+  "ResourcePath": "/index.html",
+  "IPAddress": "$WEBSERVER_PRIMARY_PUBLIC_IP",
+  "RequestInterval": 30,
+  "FailureThreshold": 3
+} 
+EOF

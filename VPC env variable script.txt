@@ -1,0 +1,29 @@
+# Get VPC ID's
+export VPC_ID_PRIMARY=$(aws cloudformation describe-stacks \
+  --stack-name Route53-Failover-Site-A \
+  --region me-central-1 | jq -r .Stacks[0].Outputs[0].OutputValue)
+
+export VPC_ID_SECONDARY=$(aws cloudformation describe-stacks \
+  --stack-name Route53-Failover-Site-B \
+  --region me-south-1 | jq -r .Stacks[0].Outputs[0].OutputValue)
+
+echo PRIMARY VPC = $VPC_ID_PRIMARY
+echo SECONDARY VPC = $VPC_ID_SECONDARY
+
+# Get Custom Route Table ID's
+export ROUTE_TABLE_PRIMARY=$(aws ec2 describe-route-tables \
+  --filters \
+  "Name=vpc-id,Values=$VPC_ID_PRIMARY" \
+  "Name=association.main,Values=false" \
+  --query 'RouteTables[*].RouteTableId' \
+  --output text \
+  --region me-central-1)
+
+export ROUTE_TABLE_SECONDARY=$(aws ec2 describe-route-tables \
+  --filters \
+  "Name=vpc-id,Values=$VPC_ID_SECONDARY" \
+  "Name=association.main,Values=false" \
+  --query 'RouteTables[*].RouteTableId' \
+  --output text \
+  --region me-south-1)  
+   

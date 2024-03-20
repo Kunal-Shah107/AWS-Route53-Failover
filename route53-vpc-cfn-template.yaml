@@ -1,0 +1,186 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description:  This template deploys one VPC and create a public subnet with two EC2 instances. It deploys an internet gateway, with a default
+  route on the public subnet. 
+
+Parameters:
+  EnvironmentName:
+    Description: An environment name that is prefixed to resource names
+    Type: String
+    Default: Route53-Failover
+
+  VpcCIDR:
+    Description: Please enter the IP range (CIDR notation) for this VPC
+    Type: String
+    Default: 10.0.0.0/16
+
+  PublicSubnet1CIDR:
+    Description: Please enter the IP range (CIDR notation) for the public subnet in the first Region
+    Type: String
+    Default: 10.0.1.0/24
+
+  SSHLocation: 
+    Description : Origin IP CIDR
+    Type: String
+    Default: 0.0.0.0/0
+
+Mappings:
+  RegionMap:
+    me-central-1:
+      AMI: ami-013ec190c14420eb5
+    me-south-1:
+      AMI: ami-0fad750d7d8d2de94
+    us-west-1:
+      AMI: ami-0a245a00f741d6301
+    us-west-2:
+      AMI: ami-05b622b5fa0269787
+    sa-east-1:
+      AMI: ami-0ca43e15336e41670
+
+Resources:
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref VpcCIDR
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value: !Ref EnvironmentName
+
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Ref EnvironmentName
+
+  InternetGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      InternetGatewayId: !Ref InternetGateway
+      VpcId: !Ref VPC
+
+  PublicSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [ 0, !GetAZs '' ]
+      CidrBlock: !Ref PublicSubnet1CIDR
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName} - Public Subnet
+
+
+  NatGatewayEIP:
+    Type: AWS::EC2::EIP
+    DependsOn: InternetGatewayAttachment
+    Properties:
+      Domain: VPC
+
+  NatGateway1:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt NatGatewayEIP.AllocationId
+      SubnetId: !Ref PublicSubnet1
+
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName} Public Routes
+
+  DefaultPublicRoute:
+    Type: AWS::EC2::Route
+    DependsOn: InternetGatewayAttachment
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  PublicSubnet1RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      SubnetId: !Ref PublicSubnet1
+
+  InstanceSecurityGroup1:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+        GroupDescription: Allow HTTP and SSH to Web Server host
+        VpcId:
+           Ref: VPC
+        SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0 
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0 
+
+  WebServerInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !FindInMap 
+        - RegionMap
+        - !Ref 'AWS::Region'
+        - AMI
+      InstanceType: t3.small
+      SecurityGroupIds: 
+        - !GetAtt InstanceSecurityGroup1.GroupId
+      SubnetId: !Ref PublicSubnet1
+      UserData:
+        Fn::Base64: !Sub 
+         - |
+          #!/bin/bash
+          yum update -y
+          yum install httpd -y
+          service httpd start
+          chkconfig httpd on
+          cd /var/www/html
+          echo "<html><h1>Welcome to acloudguy Labs Demo !! </h1><h2>Hosted in ${AWS_REGION}</h2</html>" > index.html
+         - AWS_REGION: !Ref 'AWS::Region'
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName} - WebServer
+
+  InstanceSecurityGroup2:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+        GroupDescription: Allow SSH to Client host
+        VpcId:
+           Ref: VPC
+        SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0  
+
+  EC2Client:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !FindInMap 
+        - RegionMap
+        - !Ref 'AWS::Region'
+        - AMI
+      InstanceType: t3.small
+      SecurityGroupIds: 
+        - !GetAtt InstanceSecurityGroup2.GroupId
+      SubnetId: !Ref PublicSubnet1
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName} - Bastion
+
+
+Outputs:
+  VPC:
+    Description: A reference to the created VPC
+    Value: !Ref VPC
+
+  PublicSubnet:
+    Description: A list of the public subnets
+    Value: !Ref PublicSubnet1

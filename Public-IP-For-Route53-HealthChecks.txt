@@ -1,0 +1,18 @@
+export WEBSERVER_PRIMARY_PUBLIC_IP=$(aws ec2 describe-instances \
+  --region me-central-1 \
+  --filters \
+  "Name=instance-state-name,Values=running" \
+  "Name=tag-value,Values=Route53-Failover - WebServer" \
+  --query 'Reservations[*].Instances[*].[PublicIpAddress]' \
+  --output text)
+
+export WEBSERVER_SECONDARY_PUBLIC_IP=$(aws ec2 describe-instances \
+  --region me-south-1 \
+  --filters \
+  "Name=instance-state-name,Values=running" \
+  "Name=tag-value,Values=Route53-Failover - WebServer" \
+  --query 'Reservations[*].Instances[*].[PublicIpAddress]' \
+  --output text)      
+
+echo PRIMARY WEB SERVER = $WEBSERVER_PRIMARY_PUBLIC_IP
+echo SECONDARY WEB SERVER = $WEBSERVER_SECONDARY_PUBLIC_IP  

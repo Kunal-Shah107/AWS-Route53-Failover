@@ -1,0 +1,18 @@
+export WEBSERVER_PRIMARY_PRIVATE_IP=$(aws ec2 describe-instances \
+  --region me-central-1 \
+  --filters \
+  "Name=instance-state-name,Values=running" \
+  "Name=tag-value,Values=WebServerInstance" \
+  --query 'Reservations[*].Instances[*].[PrivateIpAddress]' \
+  --output text)
+
+export WEBSERVER_SECONDARY_PRIVATE_IP=$(aws ec2 describe-instances \
+  --region me-south-1 \
+  --filters \
+  "Name=instance-state-name,Values=running" \
+  "Name=tag-value,Values=WebServerInstance" \
+  --query 'Reservations[*].Instances[*].[PrivateIpAddress]' \
+  --output text)      
+
+echo PRIMARY WEB SERVER = $WEBSERVER_PRIMARY_PRIVATE_IP
+echo SECONDARY WEB SERVER = $WEBSERVER_SECONDARY_PRIVATE_IP  

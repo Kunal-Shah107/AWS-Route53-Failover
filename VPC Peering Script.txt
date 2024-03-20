@@ -1,0 +1,26 @@
+# Request VPC Peering
+export PEERING_ID=$(aws ec2 create-vpc-peering-connection \
+  --vpc-id $VPC_ID_PRIMARY --region me-central-1 \
+  --peer-vpc-id $VPC_ID_SECONDARY  --peer-region me-south-1 | \
+  jq -r ".VpcPeeringConnection.VpcPeeringConnectionId")
+
+# Wait a few seconds
+sleep 10
+
+# Accept VPC Peering
+aws ec2 accept-vpc-peering-connection \
+  --vpc-peering-connection-id $PEERING_ID \
+  --region me-south-1
+
+# Add routes to VPC Peering
+aws ec2 create-route \
+  --route-table-id $ROUTE_TABLE_PRIMARY \
+  --destination-cidr-block 10.1.0.0/16 \
+  --vpc-peering-connection-id $PEERING_ID \
+  --region me-central-1
+
+aws ec2 create-route \
+  --route-table-id $ROUTE_TABLE_SECONDARY \
+  --destination-cidr-block 10.0.0.0/16 \
+  --vpc-peering-connection-id $PEERING_ID \
+  --region me-south-1   
